@@ -153,9 +153,9 @@ def story_page(vol_label, folder, title, intro, secs, panels, prev, next_,
     if cover:
         parts.append(COVER_HTML)
     name = title.split('·')[-1].strip() if '·' in title else title
-    parts.append('<div class="chapter"><div class="hui">%s</div><h1>%s</h1>'
-                 '<div class="source">%s</div></div>'
-                 % (esc(hui or vol_label), esc(name), esc(intro)))
+    src_div = ('<div class="source">%s</div>' % esc(intro)) if intro.strip() else ''
+    parts.append('<div class="chapter"><div class="hui">%s</div><h1>%s</h1>%s</div>'
+                 % (esc(hui or vol_label), esc(name), src_div))
     for fn, scene, insc, baihua in panels:
         img = os.path.join(folder, fn)
         if not os.path.exists(img):
@@ -192,9 +192,12 @@ def story_page(vol_label, folder, title, intro, secs, panels, prev, next_,
 
 def make_thumb(src, dst, size=180):
     from PIL import Image
-    im = Image.open(src)
-    im.thumbnail((size, size))
-    im.save(dst, 'JPEG', quality=82)
+    try:
+        im = Image.open(src)
+        im.thumbnail((size, size))
+        im.save(dst, 'JPEG', quality=82)
+    except Exception as e:
+        print('  ! 缩略图跳过（文件可能正被并行写入）:', os.path.basename(src), e)
 
 
 def build_volume(series_dir, md_name, vol_label, rel_index='../../index.html',
