@@ -1,0 +1,12 @@
+# 密钥（绝不入库）
+.aigw_key
+
+# 本地废稿归档（留底不上传）
+drafts/
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
