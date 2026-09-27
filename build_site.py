@@ -488,7 +488,7 @@ def main():
                      '笑林广记 · 笑话组画', '笑林广记', '笑话组画',
                      '水墨笑话 · 一图一捧腹', '古代笑话 · %d 册' % len(xiaohua),
                      xiaohua, '册目', '笑林广记 · 笑话组画',
-                     note='每册二至五幅，合幕题款覆盖原文全篇')
+                     note='每册二至五幅，题款撷取原文精要')
     print('== index.html 书架（通鉴 %d 回页 · 成语 %d 册 · 笑话 %d 册）'
           % (len(tj_list), len(chengyu), len(xiaohua)))
     build_index(chengyu, xiaohua, tj)
