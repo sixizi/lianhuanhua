@@ -45,12 +45,21 @@ def load_font_path(path, size):
         return load_font(size)
 
 
-def draw_col(d, text, xc, y0, pitch, font, fill):
+def draw_col(d, text, xc, y0, pitch, font, fill, size=68):
     for i, ch in enumerate(text):
         b = d.textbbox((0, 0), ch, font=font)
         w, h = b[2] - b[0], b[3] - b[1]
-        d.text((xc - w / 2 - b[0], y0 + i * pitch - h / 2 - b[1]), ch,
-               font=font, fill=fill)
+        x = xc - w / 2 - b[0]
+        y = y0 + i * pitch - h / 2 - b[1]
+        d.text((x, y), ch, font=font, fill=fill)
+        # 「曰」补笔（2026-09-26）：本字体曰字中横仅约 4px 且偏右（刻本弱横），
+        # 人眼/模型均难与日区分；合成时加画一条醒目浮空短横（同墨色）。
+        if ch == '曰':
+            yt = y + h * 0.42  # 对齐本字体弱横原位（bbox 顶约 40% 处），合成一条干净短横
+            x1, x2 = x + w * 0.3, x + w * 0.7
+            t = max(3, int(size * 0.06))
+            for k in range(t):
+                d.line([(x1, yt + k), (x2, yt + k)], fill=fill)
 
 
 def draw_seal(d, font, xc, y, text):
@@ -120,7 +129,7 @@ def main():
     for xc, text in zip(xcs, cols):
         if len(text) * a.pitch + a.y0 > 1900:
             print('警告：列「%s」过长可能超出画幅' % text)
-        draw_col(d, text, xc, a.y0, a.pitch, font, INK)
+        draw_col(d, text, xc, a.y0, a.pitch, font, INK, a.size)
     draw_seal(d, seal_font, xcs[-1], seal_y, a.seal)
 
     out = a.image if a.in_place else (
