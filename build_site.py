@@ -450,7 +450,7 @@ def build_index(chengyu_list, xiaohua_list, tj_rows):
     parts.append('''
   <div class="sect" style="margin-top:64px"><div class="label">关于本画库</div>
   <p>以 AI 绘制传统连环画：人物场景一致卡锁形，底图无字，题款以方正清刻本悦宋程序合成（竖排右起、无标点），资治通鉴卷钤峄山碑篆体「资治通鉴」朱印，逐幅经视觉模型逐字校验后上架。原文取自古籍开源语料（资治通鉴：daizhigev20 底本）。</p>
-  <p>本站由 GitHub Pages 托管 · 图像生成 aicloud-seedream · 生成与校验工具链随仓库开源。</p></div>''')
+  <p>本站由 GitHub Pages 托管 · 生成与校验工具链随仓库开源。</p></div>''')
     parts.append('<footer>资治通鉴连环画 · 连环画画库 · 以画为鉴</footer>'
                  '</div>\n</body>\n</html>')
     with open(os.path.join(ROOT, 'index.html'), 'w', encoding='utf-8') as f:
