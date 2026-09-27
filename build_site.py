@@ -147,7 +147,8 @@ def parse_story_md(path):
 
 
 def story_page(vol_label, folder, title, intro, secs, panels, prev, next_,
-               rel_index, cover=False, hui=None, footer_note=None):
+               rel_index, cover=False, hui=None, footer_note=None,
+               book_index=None):
     parts = []
     parts.append('<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n'
                  '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
@@ -185,10 +186,11 @@ def story_page(vol_label, folder, title, intro, secs, panels, prev, next_,
             continue
         parts.append('<div class="sect"><div class="label">%s</div>%s</div>'
                      % (esc(name_sec), body))
+    toc = book_index or rel_index
     left = ('<a href="%s">← %s</a>' % (prev[1], esc(prev[0]))) if prev else \
-           ('<a href="%s">← 总目录</a>' % rel_index)
+           ('<a href="%s">← 本书目录</a>' % toc)
     right = ('<a href="%s">%s →</a>' % (next_[1], esc(next_[0]))) if next_ else \
-            '<a href="%s">总目录 →</a>' % rel_index
+            '<a href="%s">本书目录 →</a>' % toc
     parts.append('<div class="pager">%s%s</div>' % (left, right))
     parts.append('<footer>%s</footer></div>\n</body>\n</html>'
                  % esc(footer_note or (vol_label + ' · 连环画画库 · 以画为鉴')))
@@ -206,7 +208,8 @@ def make_thumb(src, dst, size=180):
 
 
 def build_volume(series_dir, md_name, vol_label, rel_index='../../index.html',
-                 cover=False, hui_prefix=None, footer_note=None):
+                 cover=False, hui_prefix=None, footer_note=None,
+                 book_index=None):
     """生成一卷所有回页/册页，返回 [(文件夹, 显示名, 链接, 缩略图)]。"""
     entries = []
     for d in sorted(os.listdir(series_dir)):
@@ -238,7 +241,8 @@ def build_volume(series_dir, md_name, vol_label, rel_index='../../index.html',
             next_ = (nx[0].split('-', 1)[-1], '../%s/%s.html' % (nx[0], nx[0]))
         page = story_page(vol_label, folder, title, intro, secs, panels,
                           prev, next_, rel_index=rel_index, cover=cover,
-                          hui=hui, footer_note=footer_note)
+                          hui=hui, footer_note=footer_note,
+                          book_index=book_index)
         out = os.path.join(folder, d + '.html')
         with open(out, 'w', encoding='utf-8') as f:
             f.write(page)
@@ -291,6 +295,120 @@ def parse_tongjian_plan():
     return rows
 
 
+def book_cover(strip_main, strip_sub, subtitle, author, href):
+    """书架页里的一本书：双列竖排书名书封。"""
+    return ('<a href="%s" style="text-decoration:none;color:inherit" '
+            'onmouseover="this.style.background=\'rgba(0,0,0,.03)\'" '
+            'onmouseout="this.style.background=\'none\'">'
+            '<div style="display:inline-block;border:3px double var(--line);'
+            'padding:30px 40px 26px;background:rgba(255,253,248,.55);'
+            'min-height:300px">'
+            '<div style="display:flex;flex-direction:row-reverse;justify-content:center;'
+            'align-items:flex-start;gap:14px">'
+            '<span style="writing-mode:vertical-rl;text-orientation:upright;'
+            'font-weight:700;line-height:1;font-size:clamp(38px,7vw,50px);'
+            'letter-spacing:11px">%s</span>'
+            '<span style="writing-mode:vertical-rl;text-orientation:upright;'
+            'font-weight:700;line-height:1;font-size:clamp(28px,5vw,38px);'
+            'letter-spacing:9px;color:var(--grey)">%s</span>'
+            '</div></div>'
+            '<div style="margin-top:14px;font-size:13px;color:var(--grey);'
+            'letter-spacing:4px">%s</div>'
+            '<div style="margin-top:6px;font-size:12px;color:var(--grey);'
+            'letter-spacing:2px">%s</div></a>'
+            % (href, esc(strip_main), esc(strip_sub), esc(subtitle), esc(author)))
+
+
+def build_book_index(path, rel_back, book_title, strip_main, strip_sub,
+                     subtitle, author, entries, entries_label,
+                     footer_note, note=None, plan_rows=None):
+    """单本书目录页：书封 + 全部回目/册目（含制作中条目）+ 回书架。"""
+    parts = ['<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n'
+             '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+             '<title>%s · 目录</title>\n<style>%s</style>\n</head>\n<body>\n'
+             '<div class="book">' % (esc(book_title), CSS)]
+    parts.append('<div class="topline"><a href="%s">连环画画库</a> · %s</div>'
+                 % (rel_back, esc(book_title)))
+    parts.append('<div class="cover"><div class="cover-frame"><div class="title-strip">'
+                 '<span class="v main">%s</span><span class="v sub">%s</span>'
+                 '</div></div><div class="subtitle">%s</div>'
+                 '<div class="author">%s</div></div>'
+                 % (esc(strip_main), esc(strip_sub), esc(subtitle), esc(author)))
+    if note:
+        parts.append('<div style="text-align:center;font-size:12.5px;color:var(--grey);'
+                     'letter-spacing:2px;margin:0 0 34px">%s</div>' % esc(note))
+
+    def head(no, name, cnt):
+        return ('<div style="margin-top:40px"><div style="font-size:12px;'
+                'color:var(--grey);letter-spacing:4px;padding-bottom:10px;'
+                'border-bottom:2px solid var(--line)">%s</div>'
+                '<div style="display:flex;justify-content:space-between;'
+                'align-items:baseline;margin:16px 0 8px">'
+                '<div style="font-size:24px;font-weight:700;letter-spacing:6px">%s</div>'
+                '<div style="font-size:12px;color:var(--grey);letter-spacing:2px">%s</div>'
+                '</div></div>' % (no, esc(name), cnt))
+
+    if plan_rows is not None:
+        # 通鉴：用总览计划（含制作中），按辑分章
+        groups = [('第一辑 · 战国秦汉晋（全十回）', 1, 10),
+                  ('第二辑 · 汉末至南北朝（第十一至二十回）', 11, 20),
+                  ('第三辑 · 隋唐五代（第二十一至三十回）', 21, 30)]
+        cn_num = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十',
+                  '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八',
+                  '十九', '二十', '二十一', '二十二', '二十三', '二十四', '二十五',
+                  '二十六', '二十七', '二十八', '二十九', '三十']
+
+        def hui_num(hui):
+            try:
+                return cn_num.index(hui.replace('第', '').replace('回', ''))
+            except ValueError:
+                return 0
+        for gname, lo, hi in groups:
+            rows = [r for r in plan_rows if lo <= hui_num(r[0]) <= hi]
+            parts.append(head('目录', gname, '%d 回' % len(rows)))
+            for hui, name, status, link in rows:
+                label = '%s · %s' % (hui, name)
+                if link:
+                    # plan 链接是站根相对，本页在系列目录内——剥掉系列前缀
+                    rel = link.split('/', 1)[1] if '/' in link else link
+                    parts.append('<a href="%s" style="display:block;padding:11px 14px;'
+                                 'border-bottom:1px solid var(--hair);text-decoration:none;'
+                                 'font-size:15px;letter-spacing:2px" '
+                                 'onmouseover="this.style.background=\'rgba(0,0,0,.03)\'" '
+                                 'onmouseout="this.style.background=\'none\'">%s</a>'
+                                 % (rel, esc(label)))
+                else:
+                    parts.append('<div style="display:block;padding:11px 14px;'
+                                 'border-bottom:1px solid var(--hair);font-size:15px;'
+                                 'letter-spacing:2px;color:var(--grey);opacity:.55">%s'
+                                 '<span style="font-size:12px;margin-left:12px">（%s）'
+                                 '</span></div>' % (esc(label), esc(status or '制作中')))
+    else:
+        parts.append(head('目录', entries_label, '%d 篇' % len(entries)))
+        for nn_name, disp, href, thumb in entries:
+            # href 已是系列目录相对（NN/NN.html）；thumb 是绝对路径 → 相对系列目录加 ../
+            t = os.path.relpath(thumb, ROOT)
+            t = '../' + t
+            parts.append('<a href="%s" style="display:flex;align-items:center;gap:16px;'
+                         'padding:10px 14px;border-bottom:1px solid var(--hair);'
+                         'text-decoration:none" '
+                         'onmouseover="this.style.background=\'rgba(0,0,0,.03)\'" '
+                         'onmouseout="this.style.background=\'none\'">'
+                         '<img src="%s" style="width:44px;height:44px;object-fit:cover;'
+                         'border:1px solid var(--hair);flex:none">'
+                         '<span style="font-size:15px;letter-spacing:2px">%s</span></a>'
+                         % (href, t, esc(disp)))
+
+    parts.append('<div class="pager"><a href="%s">← 书架</a>'
+                 '<a href="%s">翻开第一篇 →</a></div>'
+                 % (rel_back, entries[0][2] if entries else rel_back))
+    parts.append('<footer>%s</footer></div>\n</body>\n</html>'
+                 % esc(footer_note))
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(''.join(parts))
+    print('  book index:', os.path.relpath(path, ROOT))
+
+
 def build_index(chengyu_list, xiaohua_list, tj_rows):
     parts = []
     parts.append('<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n'
@@ -317,40 +435,18 @@ def build_index(chengyu_list, xiaohua_list, tj_rows):
                 'font-weight:700;letter-spacing:6px">%s</div><div style="font-size:12px;'
                 'color:var(--grey);letter-spacing:2px">%s</div></div>' % (no, name, note))
 
-    parts.append(vol_head('卷 一', '资治通鉴连环画', '白描敷彩 · 峄山碑篆印 · 第一辑十回'))
-    for hui, name, status, link in tj_rows:
-        label = '%s · %s' % (hui, name)
-        if link:
-            parts.append('<a href="%s" style="display:block;padding:12px 14px;'
-                         'border-bottom:1px solid var(--hair);text-decoration:none;'
-                         'font-size:15px;letter-spacing:2px" '
-                         'onmouseover="this.style.background=\'rgba(0,0,0,.03)\'" '
-                         'onmouseout="this.style.background=\'none\'">%s</a>' % (link, esc(label)))
-        else:
-            parts.append('<div style="display:block;padding:12px 14px;border-bottom:1px solid var(--hair);'
-                         'font-size:15px;letter-spacing:2px;color:var(--grey);opacity:.55">%s'
-                         '<span style="font-size:12px;margin-left:12px">（%s）</span></div>'
-                         % (esc(label), esc(status or '制作中')))
+    parts.append(vol_head('书架 · 三本', '连环画画库', '点击书封开卷 · 全站 %d 篇'
+                          % (len(tj_rows) + len(chengyu_list) + len(xiaohua_list))))
+    parts.append('<div style="display:flex;flex-wrap:wrap;justify-content:center;'
+                 'gap:56px;padding:20px 0 10px">')
+    parts.append(book_cover('资治通鉴', '连环画', '白描敷彩 · 峄山碑篆印 · 三辑三十回',
+                            '司马光 原著', '资治通鉴/目录.html'))
+    parts.append(book_cover('成语故事', '水墨组画', '水墨宣纸 · 浓淡相生 · %d 册'
+                            % len(chengyu_list), '古代寓言', '成语故事/目录.html'))
+    parts.append(book_cover('笑林广记', '笑话组画', '水墨笑话 · 一图一捧腹 · %d 册'
+                            % len(xiaohua_list), '古代笑话', '笑林广记/目录.html'))
+    parts.append('</div>')
 
-    def story_rows(lst, base):
-        rows = []
-        for nn_name, disp, href, thumb in lst:
-            rows.append('<a href="%s/%s" style="display:flex;align-items:center;gap:16px;'
-                        'padding:10px 14px;border-bottom:1px solid var(--hair);text-decoration:none" '
-                        'onmouseover="this.style.background=\'rgba(0,0,0,.03)\'" '
-                        'onmouseout="this.style.background=\'none\'">'
-                        '<img src="%s" style="width:44px;height:44px;object-fit:cover;'
-                        'border:1px solid var(--hair);flex:none">'
-                        '<span style="font-size:15px;letter-spacing:2px">%s</span></a>'
-                        % (base, esc(href), os.path.relpath(thumb, ROOT), esc(disp)))
-        return rows
-
-    parts.append(vol_head('卷 二', '成语故事水墨组画', '水墨宣纸 · %d 册' % len(chengyu_list)))
-    parts.extend(story_rows(chengyu_list, '成语故事'))
-    parts.append(vol_head('卷 三', '笑林广记', '水墨笑话组画 · %d 册' % len(xiaohua_list)))
-    parts.append('<div style="font-size:12px;color:var(--grey);letter-spacing:2px;padding:12px 4px">'
-                 '每册二至五幅，合幕题款覆盖原文全篇</div>')
-    parts.extend(story_rows(xiaohua_list, '笑林广记'))
     parts.append('''
   <div class="sect" style="margin-top:64px"><div class="label">关于本画库</div>
   <p>以 AI 绘制传统连环画：人物场景一致卡锁形，底图无字，题款以方正清刻本悦宋程序合成（竖排右起、无标点），资治通鉴卷钤峄山碑篆体「资治通鉴」朱印，逐幅经视觉模型逐字校验后上架。原文取自古籍开源语料（资治通鉴：daizhigev20 底本）。</p>
@@ -364,17 +460,36 @@ def build_index(chengyu_list, xiaohua_list, tj_rows):
 
 def main():
     os.makedirs(THUMBS, exist_ok=True)
+    tj_dir = os.path.join(ROOT, '资治通鉴')
     print('== 卷一 资治通鉴')
-    tj_list = build_volume(os.path.join(ROOT, '资治通鉴'), '故事.md',
+    tj_list = build_volume(tj_dir, '故事.md',
                            '资治通鉴连环画', rel_index='../../index.html', cover=True,
                            hui_prefix='通鉴',
-                           footer_note='资治通鉴连环画 · 白描敷彩绘制 · 题款程序合成 · 峄山碑篆体印')
+                           footer_note='资治通鉴连环画 · 白描敷彩绘制 · 题款程序合成 · 峄山碑篆体印',
+                           book_index='../目录.html')
     print('== 卷二 成语故事')
-    chengyu = build_volume(os.path.join(ROOT, '成语故事'), '故事.md', '成语故事 · 水墨组画')
+    chengyu = build_volume(os.path.join(ROOT, '成语故事'), '故事.md', '成语故事 · 水墨组画',
+                           book_index='../目录.html')
     print('== 卷三 笑林广记')
-    xiaohua = build_volume(os.path.join(ROOT, '笑林广记'), '笑话.md', '笑林广记 · 笑话组画')
+    xiaohua = build_volume(os.path.join(ROOT, '笑林广记'), '笑话.md', '笑林广记 · 笑话组画',
+                           book_index='../目录.html')
     tj = parse_tongjian_plan()
-    print('== index.html（通鉴 %d 回页 · 成语 %d 册 · 笑话 %d 册）'
+    print('== 三本书目录页')
+    build_book_index(os.path.join(tj_dir, '目录.html'), '../index.html',
+                     '资治通鉴连环画', '资治通鉴', '连环画',
+                     '白描敷彩 · 以画为鉴', '司马光 原著 · 三辑三十回',
+                     tj_list, '回目', '资治通鉴连环画 · 以画为鉴',
+                     plan_rows=tj)
+    build_book_index(os.path.join(ROOT, '成语故事', '目录.html'), '../index.html',
+                     '成语故事 · 水墨组画', '成语故事', '水墨组画',
+                     '水墨宣纸 · 浓淡相生', '古代寓言 · %d 册' % len(chengyu),
+                     chengyu, '册目', '成语故事 · 水墨组画')
+    build_book_index(os.path.join(ROOT, '笑林广记', '目录.html'), '../index.html',
+                     '笑林广记 · 笑话组画', '笑林广记', '笑话组画',
+                     '水墨笑话 · 一图一捧腹', '古代笑话 · %d 册' % len(xiaohua),
+                     xiaohua, '册目', '笑林广记 · 笑话组画',
+                     note='每册二至五幅，合幕题款覆盖原文全篇')
+    print('== index.html 书架（通鉴 %d 回页 · 成语 %d 册 · 笑话 %d 册）'
           % (len(tj_list), len(chengyu), len(xiaohua)))
     build_index(chengyu, xiaohua, tj)
     print('DONE 通鉴 %d 回 · 成语 %d 册 · 笑话 %d 册' % (len(tj_list), len(chengyu), len(xiaohua)))
