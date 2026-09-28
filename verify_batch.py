@@ -106,18 +106,20 @@ def main():
                                            sname + '.jpg'),
                               cols, mj.SEAL))
 
-    tongjian = os.path.join(HERE, '资治通鉴')
-    if os.path.isdir(tongjian):
-        for d in sorted(os.listdir(tongjian)):
-            script = os.path.join(tongjian, d, 'gen_batch.py')
+    for series_dir, series_tag in ((os.path.join(HERE, '资治通鉴'), 'spec_tj_'),
+                                    (os.path.join(HERE, '论语'), 'spec_ly_')):
+        if not os.path.isdir(series_dir):
+            continue
+        for d in sorted(os.listdir(series_dir)):
+            script = os.path.join(series_dir, d, 'gen_batch.py')
             if not os.path.isfile(script):
                 continue
             if only and not any(s in d for s in only):
                 continue
-            mt = load_module(script, 'spec_tj_' + d[:2])
+            mt = load_module(script, series_tag + d[:2])
             for name, cols in mt.INSCRIPTIONS:
                 tasks.append((d,
-                              os.path.join(tongjian, d, name + '.jpg'),
+                              os.path.join(series_dir, d, name + '.jpg'),
                               cols, mt.SEAL))
 
     ok, bad = [], []

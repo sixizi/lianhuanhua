@@ -63,14 +63,25 @@ def draw_col(d, text, xc, y0, pitch, font, fill, size=68):
 
 
 def draw_seal(d, font, xc, y, text):
+    """印章：右列自上而下，再左列自上而下。4 字=2x2（108x108，历史布局不变）；
+    5-6 字=2x3（108x162）；7-8 字=2x4（108x216）。超过 8 字截取前 8 字。"""
     r = 54
-    d.rounded_rectangle((xc - r, y, xc + r, y + 2 * r), radius=9, fill=RED)
-    cells = [(xc + 27, y + 27), (xc + 27, y + 81),
-             (xc - 27, y + 27), (xc - 27, y + 81)]
+    text = text[:8]
+    rows = (len(text) + 1) // 2
+    h = rows * r
+    d.rounded_rectangle((xc - r, y, xc + r, y + h), radius=9, fill=RED)
+    cells = [(xc + 27, y + 27 + k * 54) for k in range(rows)]
+    cells += [(xc - 27, y + 27 + k * 54) for k in range(rows)]
     for (cx, cy), ch in zip(cells, text):
         b = d.textbbox((0, 0), ch, font=font)
-        w, h = b[2] - b[0], b[3] - b[1]
-        d.text((cx - w / 2 - b[0], cy - h / 2 - b[1]), ch, font=font, fill=PAPER)
+        w, h2 = b[2] - b[0], b[3] - b[1]
+        d.text((cx - w / 2 - b[0], cy - h2 / 2 - b[1]), ch, font=font, fill=PAPER)
+
+
+def seal_height(nchar):
+    """印章纵向占位（含上下留边），供检查区推导。"""
+    rows = (min(nchar, 8) + 1) // 2
+    return max(128, rows * 54 + 30)
 
 
 def title_area_clean(im, box):
@@ -110,7 +121,7 @@ def main():
     xcs = [a.xc_right - i * a.col_gap for i in range(len(cols))]
     seal_y = a.y0 + (len(cols[-1]) - 1) * a.pitch + a.pitch // 2 + 60
     # 检查区域须覆盖最高列底部（长列 + 短末列印章场景）
-    max_bottom = max(seal_y + 128,
+    max_bottom = max(seal_y + seal_height(len(a.seal)),
                      a.y0 + max(len(c) for c in cols) * a.pitch + 60)
     region = (max(0, min(xcs) - 80), max(0, a.y0 - 40),
               im.size[0], min(im.size[1], max_bottom))

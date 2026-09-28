@@ -211,8 +211,11 @@ def build_volume(series_dir, md_name, vol_label, rel_index='../../index.html',
                  cover=False, hui_prefix=None, footer_note=None,
                  book_index=None):
     """生成一卷所有回页/册页，返回 [(文件夹, 显示名, 链接, 缩略图)]。"""
+    def _numkey(d):
+        m = re.match(r'^(\d+)-', d)
+        return (int(m.group(1)) if m else 999999, d)
     entries = []
-    for d in sorted(os.listdir(series_dir)):
+    for d in sorted(os.listdir(series_dir), key=_numkey):
         folder = os.path.join(series_dir, d)
         md_path = os.path.join(folder, md_name)
         if not os.path.isdir(folder) or not os.path.exists(md_path):
@@ -230,7 +233,7 @@ def build_volume(series_dir, md_name, vol_label, rel_index='../../index.html',
         hui = None
         if hui_prefix:
             num = d.split('-', 1)[0]
-            hui = '第 %s 回' % HUAN.get(num, num) if hui_prefix == '通鉴' else None
+            hui = '第 %s 回' % HUAN.get(num, num) if hui_prefix in ('通鉴', '论语') else None
             if hui is None:
                 hui = hui_prefix
         if i > 0:
@@ -409,7 +412,8 @@ def build_book_index(path, rel_back, book_title, strip_main, strip_sub,
     print('  book index:', os.path.relpath(path, ROOT))
 
 
-def build_index(chengyu_list, xiaohua_list, tj_rows):
+def build_index(chengyu_list, xiaohua_list, tj_rows, lunyu_list=None):
+    lunyu_list = lunyu_list or []
     parts = []
     parts.append('<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n'
                  '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
@@ -435,8 +439,9 @@ def build_index(chengyu_list, xiaohua_list, tj_rows):
                 'font-weight:700;letter-spacing:6px">%s</div><div style="font-size:12px;'
                 'color:var(--grey);letter-spacing:2px">%s</div></div>' % (no, name, note))
 
-    parts.append(vol_head('书架 · 三本', '连环画画库', '点击书封开卷 · 全站 %d 篇'
-                          % (len(tj_rows) + len(chengyu_list) + len(xiaohua_list))))
+    parts.append(vol_head('书架 · 四本', '连环画画库', '点击书封开卷 · 全站 %d 篇'
+                          % (len(tj_rows) + len(chengyu_list) + len(xiaohua_list)
+                             + len(lunyu_list))))
     parts.append('<div style="display:flex;flex-wrap:wrap;justify-content:center;'
                  'gap:56px;padding:20px 0 10px">')
     parts.append(book_cover('资治通鉴', '连环画', '白描敷彩 · 峄山碑篆印 · 三辑三十回',
@@ -445,6 +450,8 @@ def build_index(chengyu_list, xiaohua_list, tj_rows):
                             % len(chengyu_list), '古代寓言', '成语故事/目录.html'))
     parts.append(book_cover('笑林广记', '笑话组画', '水墨笑话 · 一图一捧腹 · %d 册'
                             % len(xiaohua_list), '古代笑话', '笑林广记/目录.html'))
+    parts.append(book_cover('论语', '连环画', '白描敷彩 · 峄山碑篆印 · 十回',
+                            '孔子及弟子言行', '论语/目录.html'))
     parts.append('</div>')
 
     parts.append('''
@@ -473,6 +480,12 @@ def main():
     print('== 卷三 笑林广记')
     xiaohua = build_volume(os.path.join(ROOT, '笑林广记'), '笑话.md', '笑林广记 · 笑话组画',
                            book_index='../目录.html')
+    print('== 卷四 论语')
+    lunyu = build_volume(os.path.join(ROOT, '论语'), '故事.md', '论语连环画',
+                        rel_index='../../index.html', cover=True,
+                        hui_prefix='论语',
+                        footer_note='论语连环画 · 白描敷彩绘制 · 题款程序合成 · 峄山碑篆体印',
+                        book_index='../目录.html')
     tj = parse_tongjian_plan()
     print('== 三本书目录页')
     build_book_index(os.path.join(tj_dir, '目录.html'), '../index.html',
@@ -489,10 +502,15 @@ def main():
                      '水墨笑话 · 一图一捧腹', '古代笑话 · %d 册' % len(xiaohua),
                      xiaohua, '册目', '笑林广记 · 笑话组画',
                      note='每册二至五幅，题款撷取原文精要')
-    print('== index.html 书架（通鉴 %d 回页 · 成语 %d 册 · 笑话 %d 册）'
-          % (len(tj_list), len(chengyu), len(xiaohua)))
-    build_index(chengyu, xiaohua, tj)
-    print('DONE 通鉴 %d 回 · 成语 %d 册 · 笑话 %d 册' % (len(tj_list), len(chengyu), len(xiaohua)))
+    build_book_index(os.path.join(ROOT, '论语', '目录.html'), '../index.html',
+                     '论语连环画', '论语', '连环画',
+                     '白描敷彩 · 峄山碑篆印', '孔子及弟子言行 · 十回',
+                     lunyu, '回目', '论语连环画 · 以画证言')
+    print('== index.html 书架（通鉴 %d 回页 · 成语 %d 册 · 笑话 %d 册 · 论语 %d 回）'
+          % (len(tj_list), len(chengyu), len(xiaohua), len(lunyu)))
+    build_index(chengyu, xiaohua, tj, lunyu)
+    print('DONE 通鉴 %d 回 · 成语 %d 册 · 笑话 %d 册 · 论语 %d 回'
+          % (len(tj_list), len(chengyu), len(xiaohua), len(lunyu)))
     return 0
 
 
